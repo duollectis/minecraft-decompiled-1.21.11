@@ -57,6 +57,7 @@
 | 5 | `util/dynamic/Codecs.java` — `nonEmptyEntryList()` | Краш `unbound tag` при загрузке рецептов |
 | 6 | `network/codec/PacketCodecs.java` — `registryEntryList()` | Ошибка декодирования пакета `recipe_book_add` |
 | 7 | `util/dynamic/Codecs.java` — `orElsePartial()` | `ClassCastException: Pair cannot be cast to DataResult` при загрузке чанков |
+| 8 | `util/shape/VoxelShapes.java` — `createHorizontalFacingShapeMap()`, `createFacingShapeMap()`, `createHorizontalAxisShapeMap()`, `createAxisShapeMap()` | Неправильные хитбоксы у заборов, стен, люков, поршней, шалкеров и других блоков с направлением: использовались Z-ротации (`ROT_90_Z_POS`) вместо Y-ротаций (`ROT_90_Y_NEG`/`ROT_90_Y_POS`) для горизонтальных направлений, и Y-ротации вместо X-ротаций (`ROT_90_X_NEG`/`ROT_90_X_POS`) для вертикальных |
 
 ### Что может быть сломано
 
@@ -120,6 +121,9 @@ src/main/java/net/minecraft/
 ```bash
 # Сборка проекта
 ./gradlew build
+
+# Запуск
+./gradlew run --args="--accessToken 0 --version 1.21.11 --username UserName --assetsDir ./assets --assetIndex 29 --gameDir ./run"
 
 ```
 

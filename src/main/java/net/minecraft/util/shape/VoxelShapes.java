@@ -603,7 +603,7 @@ public final class VoxelShapes {
 				Direction.Axis.Z,
 				shape,
 				Direction.Axis.X,
-				transform(shape, DirectionTransformation.ROT_90_Z_POS, anchor)
+				transform(shape, DirectionTransformation.ROT_90_Y_POS, anchor)
 		));
 	}
 
@@ -617,9 +617,9 @@ public final class VoxelShapes {
 						Direction.Axis.Z,
 						shape,
 						Direction.Axis.X,
-						transform(shape, DirectionTransformation.ROT_90_Z_POS, anchor),
+						transform(shape, DirectionTransformation.ROT_90_Y_POS, anchor),
 						Direction.Axis.Y,
-						transform(shape, DirectionTransformation.ROT_90_Y_POS, anchor)
+						transform(shape, DirectionTransformation.ROT_90_X_NEG, anchor)
 				)
 		);
 	}
@@ -652,11 +652,11 @@ public final class VoxelShapes {
 						Direction.NORTH,
 						transform(shape, transformation),
 						Direction.EAST,
-						transform(shape, DirectionTransformation.ROT_90_Z_POS.prepend(transformation), anchor),
+						transform(shape, DirectionTransformation.ROT_90_Y_NEG.prepend(transformation), anchor),
 						Direction.SOUTH,
-						transform(shape, DirectionTransformation.ROT_180_FACE_XY.prepend(transformation), anchor),
+						transform(shape, DirectionTransformation.ROT_180_FACE_XZ.prepend(transformation), anchor),
 						Direction.WEST,
-						transform(shape, DirectionTransformation.ROT_90_Z_NEG.prepend(transformation), anchor)
+						transform(shape, DirectionTransformation.ROT_90_Y_POS.prepend(transformation), anchor)
 				)
 		);
 	}
@@ -694,15 +694,15 @@ public final class VoxelShapes {
 						Direction.NORTH,
 						transform(shape, transformation),
 						Direction.EAST,
-						transform(shape, DirectionTransformation.ROT_90_Z_POS.prepend(transformation), anchor),
-						Direction.SOUTH,
-						transform(shape, DirectionTransformation.ROT_180_FACE_XY.prepend(transformation), anchor),
-						Direction.WEST,
-						transform(shape, DirectionTransformation.ROT_90_Z_NEG.prepend(transformation), anchor),
-						Direction.UP,
 						transform(shape, DirectionTransformation.ROT_90_Y_NEG.prepend(transformation), anchor),
+						Direction.SOUTH,
+						transform(shape, DirectionTransformation.ROT_180_FACE_XZ.prepend(transformation), anchor),
+						Direction.WEST,
+						transform(shape, DirectionTransformation.ROT_90_Y_POS.prepend(transformation), anchor),
+						Direction.UP,
+						transform(shape, DirectionTransformation.ROT_90_X_NEG.prepend(transformation), anchor),
 						Direction.DOWN,
-						transform(shape, DirectionTransformation.ROT_90_Y_POS.prepend(transformation), anchor)
+						transform(shape, DirectionTransformation.ROT_90_X_POS.prepend(transformation), anchor)
 				)
 		);
 	}
